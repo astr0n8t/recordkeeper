@@ -5,17 +5,16 @@ import (
 )
 
 type Cloudflare struct {
-	domains []string
-	authToken string
 	username string
+	authToken string
 }
 
-func New(domains []string, authToken string, username string) Cloudflare {
-	c := Cloudflare {domains, authToken, username}
-	return c
+func (c Cloudflare) New(username string, authToken string) {
+	c.username = username
+	c.authToken = authToken
 }
 
-func (c Cloudflare) GetIP() string {
+func (c Cloudflare) GetIP(domain string) string {
 	return "127.0.0.1"
 }
 
@@ -23,6 +22,6 @@ func (c Cloudflare) SetIP(domain string) bool {
 	return true
 }
 
-func (c Cloudflare) Authenticate() bool {
+func (c Cloudflare) authenticate() bool {
 	return true
 }
