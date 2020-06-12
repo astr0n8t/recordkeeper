@@ -45,12 +45,16 @@ func processConfig() {
 	}
 
 	pflag.String("provider", "cloudflare", "Selects a DNS provider to use")
-	pflag.String("username", "null", "The username to use to connect to the DNS service")
-	pflag.String("authToken", "null", "The authentication token to connect to the DNS provider")
-	pflag.String("domain", "null", "The domain record to check")
+	pflag.String("username", "", "The username to use to connect to the DNS service")
+	pflag.String("authToken", "", "The authentication token to connect to the DNS provider")
+	pflag.String("domain", "", "The domain record to check")
 	pflag.String("address", "public", "The address to bind the domain to (use public to specify current public IP)")
 	pflag.Int("interval", 60, "The time in seconds to check the DNS record")
 	pflag.Parse()
 	viper.BindPFlags(pflag.CommandLine)
+
+	if viper.GetString("username") == "" || viper.GetString("authToken") == "" || viper.GetString("domain") == "" {
+		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, domain"))
+	}
 
 }
