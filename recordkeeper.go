@@ -33,6 +33,7 @@ func processConfig() {
 
 	viper.SetDefault("provider", "cloudflare")
 	viper.SetDefault("interval", 60)
+	viper.SetDefault("address", "public")
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath("/etc/recordkeeper/")
