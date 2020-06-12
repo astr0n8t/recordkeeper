@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nadehi18/recordkeeper/providers"
+	"github.com/nadehi18/recordkeeper/publicaddress"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -14,15 +15,21 @@ func main() {
 	providerConnection := providers.GetProvider(viper.GetString("provider"), viper.GetString("username"), viper.GetString("authToken"))
 	exitNext := false
 	for !exitNext {
+		var address string
+		if viper.GetString("address") == "public" {
+			address = publicaddress.GetIP()
+		} else {
+			address = viper.GetString("address")
+		}
 		currentAddress := providerConnection.GetIP(viper.GetString("domain"))
 
-		if currentAddress != viper.GetString("address") {
-			changed := providerConnection.SetIP(viper.GetString("address"))
+		if currentAddress != address {
+			changed := providerConnection.SetIP(address)
 
 			if changed {
-				fmt.Printf("Successfully updated record %v to point to address %v. \n", viper.GetString("domain"), viper.GetString("address"))
+				fmt.Printf("Successfully updated record %v to point to address %v. \n", viper.GetString("domain"), address)
 			} else {
-				fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, viper.GetString("address"), viper.GetString("domain"))
+				fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, address, viper.GetString("domain"))
 			}
 		}
 		time.Sleep(time.Duration(viper.GetInt("interval")) * time.Second)
