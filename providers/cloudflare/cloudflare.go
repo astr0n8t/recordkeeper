@@ -1,17 +1,12 @@
 package cloudflare
 
-import (
-	
-)
-
 type Cloudflare struct {
-	username string
-	authToken string
+	Username  string
+	AuthToken string
 }
 
-func (c Cloudflare) New(username string, authToken string) {
-	c.username = username
-	c.authToken = authToken
+func (c Cloudflare) New(username string, authToken string) Cloudflare {
+	return Cloudflare{username, authToken}
 }
 
 func (c Cloudflare) GetIP(domain string) string {
