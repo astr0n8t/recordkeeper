@@ -14,8 +14,9 @@ func main() {
 	processConfig()
 	providerConnection := providers.GetProvider(viper.GetString("provider"), viper.GetString("username"), viper.GetString("authToken"))
 	exitNext := false
+	var address string
+	refreshInterval := viper.GetInt("interval")
 	for !exitNext {
-		var address string
 		if viper.GetString("address") == "public" {
 			address = publicaddress.GetIP()
 		} else {
@@ -32,7 +33,12 @@ func main() {
 				fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, address, viper.GetString("domain"))
 			}
 		}
-		time.Sleep(time.Duration(viper.GetInt("interval")) * time.Second)
+
+		if refreshInterval > 0 {
+			time.Sleep(time.Duration(refreshInterval) * time.Second)
+		} else {
+			exitNext = true
+		}
 	}
 }
 
@@ -57,8 +63,9 @@ func processConfig() {
 	pflag.String("authToken", "", "The authentication token to connect to the DNS provider")
 	pflag.String("domain", "", "The domain record to check")
 	pflag.String("address", "public", "The address to bind the domain to (use public to specify current public IP)")
-	pflag.Int("interval", 60, "The time in seconds to check the DNS record")
+	pflag.Int("interval", 60, "The time in seconds to check the DNS record, set to 0 to only run once")
 	pflag.Parse()
+
 	viper.BindPFlags(pflag.CommandLine)
 
 	if viper.GetString("username") == "" || viper.GetString("authToken") == "" || viper.GetString("domain") == "" {

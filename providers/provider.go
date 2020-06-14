@@ -12,7 +12,7 @@ type Provider interface {
 func GetProvider(name string, username string, authToken string) Provider {
 
 	if name == "cloudflare" {
-		return cloudflare.Cloudflare{username, authToken}
+		return cloudflare.New(username, authToken)
 	}
 
 	return cloudflare.Cloudflare{}
