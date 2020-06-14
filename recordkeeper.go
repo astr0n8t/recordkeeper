@@ -25,7 +25,7 @@ func main() {
 		currentAddress := providerConnection.GetIP(viper.GetString("domain"))
 
 		if currentAddress != address {
-			changed := providerConnection.SetIP(address)
+			changed := providerConnection.SetIP(viper.GetString("domain"), address)
 
 			if changed {
 				fmt.Printf("Successfully updated record %v to point to address %v. \n", viper.GetString("domain"), address)

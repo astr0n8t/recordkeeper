@@ -22,11 +22,11 @@ type record struct {
 	ttl        int
 }
 
-func New(user string, auth string) Cloudflare {
-	return Cloudflare{user, auth, make(map[string]record)}
+func New(user string, auth string) *Cloudflare {
+	return &Cloudflare{user, auth, make(map[string]record)}
 }
 
-func (c Cloudflare) GetIP(domain string) string {
+func (c *Cloudflare) GetIP(domain string) string {
 
 	domainRecord, exists := c.records[domain]
 	if !exists {
@@ -39,11 +39,11 @@ func (c Cloudflare) GetIP(domain string) string {
 	return "127.0.0.1"
 }
 
-func (c Cloudflare) SetIP(domain string) bool {
+func (c *Cloudflare) SetIP(domain string, address string) bool {
 	return true
 }
 
-func (c Cloudflare) getZoneID(domain string) string {
+func (c *Cloudflare) getZoneID(domain string) string {
 	var zoneID string
 	zoneName := findZoneName(domain)
 	response := c.sendRequest("", "", domain, "GET")
@@ -75,7 +75,7 @@ func findZoneName(domain string) string {
 	return zoneName
 }
 
-func (c Cloudflare) sendRequest(zoneID string, id string, domain string, method string) *http.Response {
+func (c *Cloudflare) sendRequest(zoneID string, id string, domain string, method string) *http.Response {
 	url := "https://api.cloudflare.com/client/v4/zones"
 
 	if id != "" && zoneID != "" {

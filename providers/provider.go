@@ -6,7 +6,7 @@ import (
 
 type Provider interface {
 	GetIP(string) string
-	SetIP(string) bool
+	SetIP(string, string) bool
 }
 
 func GetProvider(name string, username string, authToken string) Provider {
@@ -15,5 +15,5 @@ func GetProvider(name string, username string, authToken string) Provider {
 		return cloudflare.New(username, authToken)
 	}
 
-	return cloudflare.Cloudflare{}
+	return &cloudflare.Cloudflare{}
 }
