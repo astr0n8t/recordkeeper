@@ -3,7 +3,6 @@ package cloudflare
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -11,6 +10,7 @@ import (
 type Cloudflare struct {
 	username  string
 	authToken string
+	records   map[string]record
 }
 
 type record struct {
@@ -23,11 +23,19 @@ type record struct {
 }
 
 func New(user string, auth string) Cloudflare {
-	return Cloudflare{user, auth}
+	return Cloudflare{user, auth, make(map[string]record)}
 }
 
 func (c Cloudflare) GetIP(domain string) string {
-	c.sendRequest("", "", domain, "GET")
+
+	domainRecord, exists := c.records[domain]
+	if !exists {
+		c.records[domain] = record{domain, "", c.getZoneID(domain), "", false, 0}
+		domainRecord = c.records[domain]
+	}
+
+	fmt.Println(domainRecord)
+
 	return "127.0.0.1"
 }
 
@@ -35,12 +43,31 @@ func (c Cloudflare) SetIP(domain string) bool {
 	return true
 }
 
+func (c Cloudflare) getZoneID(domain string) string {
+	var zoneID string
+	zoneName := findZoneName(domain)
+	response := c.sendRequest("", "", domain, "GET")
+
+	var zoneData map[string]interface{}
+	json.NewDecoder(response.Body).Decode(&zoneData)
+	zones := zoneData["result"].([]interface{})
+	for i := range zones {
+		currentZone := zones[i].(map[string]interface{})
+		currentZoneName := fmt.Sprintf("%v", currentZone["name"])
+		if currentZoneName == zoneName {
+			zoneID = fmt.Sprintf("%v", currentZone["id"])
+		}
+	}
+
+	return zoneID
+}
+
 func findZoneName(domain string) string {
 	zoneNameSlice := strings.Split(domain, ".")
 
 	var zoneName string
 	if len(zoneNameSlice) > 1 {
-		zoneName = zoneNameSlice[len(zoneNameSlice)-2] + zoneNameSlice[len(zoneNameSlice)-1]
+		zoneName = zoneNameSlice[len(zoneNameSlice)-2] + "." + zoneNameSlice[len(zoneNameSlice)-1]
 	} else {
 		zoneName = domain
 	}
@@ -48,7 +75,7 @@ func findZoneName(domain string) string {
 	return zoneName
 }
 
-func (c Cloudflare) sendRequest(zoneID string, id string, domain string, method string) {
+func (c Cloudflare) sendRequest(zoneID string, id string, domain string, method string) *http.Response {
 	url := "https://api.cloudflare.com/client/v4/zones"
 
 	if id != "" && zoneID != "" {
@@ -64,17 +91,13 @@ func (c Cloudflare) sendRequest(zoneID string, id string, domain string, method 
 	request.Header.Add("X-Content-Type", "application/json")
 
 	if err != nil {
-		log.Fatalln(err)
+		panic(fmt.Errorf("cannot form CloudFlare API request"))
 	}
 
 	resp, err := httpClient.Do(request)
 	if err != nil {
-		log.Fatalln(err)
+		panic(fmt.Errorf("cannot connect to CloudFlare API"))
 	}
 
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-	resultSlice := result["result"].([]interface{})
-	resultMap := resultSlice[0].(map[string]interface{})
-	fmt.Println(resultMap["name"])
+	return resp
 }
