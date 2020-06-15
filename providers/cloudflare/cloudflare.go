@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
 type Cloudflare struct {
 	username  string
 	authToken string
-	records   map[string]record
+	records   map[string]*record
 }
 
 type record struct {
@@ -23,15 +24,16 @@ type record struct {
 }
 
 func New(user string, auth string) *Cloudflare {
-	return &Cloudflare{user, auth, make(map[string]record)}
+	return &Cloudflare{user, auth, make(map[string]*record)}
 }
 
 func (c *Cloudflare) GetIP(domain string) string {
 
 	domainRecord, exists := c.records[domain]
 	if !exists {
-		c.records[domain] = record{domain, "", c.getZoneID(domain), "", false, 0}
+		c.records[domain] = &record{domain, "", c.getZoneID(domain), "", false, 0}
 		domainRecord = c.records[domain]
+		c.getInfo(domain)
 	}
 
 	fmt.Println(domainRecord)
@@ -41,6 +43,32 @@ func (c *Cloudflare) GetIP(domain string) string {
 
 func (c *Cloudflare) SetIP(domain string, address string) bool {
 	return true
+}
+
+func (c *Cloudflare) getInfo(domain string) {
+	response := c.sendRequest(c.records[domain].zoneID, "", domain, "GET")
+
+	var domainData map[string]interface{}
+	json.NewDecoder(response.Body).Decode(&domainData)
+	domains := domainData["result"].([]interface{})
+	for i := range domains {
+		currentDomain := domains[i].(map[string]interface{})
+		currentDomainName := itemToString(currentDomain["name"])
+		if currentDomainName == domain {
+			c.records[domain].id = itemToString(currentDomain["id"])
+			c.records[domain].recordType = itemToString(currentDomain["type"])
+			ttl, err := strconv.Atoi(itemToString(currentDomain["ttl"]))
+			if err == nil {
+				c.records[domain].ttl = ttl
+			}
+			proxiedS := itemToString(currentDomain["proxied"])
+			if proxiedS == "true" {
+				c.records[domain].proxied = true
+			} else {
+				c.records[domain].proxied = false
+			}
+		}
+	}
 }
 
 func (c *Cloudflare) getZoneID(domain string) string {
@@ -53,9 +81,9 @@ func (c *Cloudflare) getZoneID(domain string) string {
 	zones := zoneData["result"].([]interface{})
 	for i := range zones {
 		currentZone := zones[i].(map[string]interface{})
-		currentZoneName := fmt.Sprintf("%v", currentZone["name"])
+		currentZoneName := itemToString(currentZone["name"])
 		if currentZoneName == zoneName {
-			zoneID = fmt.Sprintf("%v", currentZone["id"])
+			zoneID = itemToString(currentZone["id"])
 		}
 	}
 
@@ -75,13 +103,17 @@ func findZoneName(domain string) string {
 	return zoneName
 }
 
+func itemToString(item interface{}) string {
+	return fmt.Sprintf("%v", item)
+}
+
 func (c *Cloudflare) sendRequest(zoneID string, id string, domain string, method string) *http.Response {
 	url := "https://api.cloudflare.com/client/v4/zones"
 
 	if id != "" && zoneID != "" {
-		url += zoneID + "/dns_records/" + id
+		url += "/" + zoneID + "/dns_records/" + id
 	} else if id == "" && zoneID != "" {
-		url += zoneID + "/dns_records"
+		url += "/" + zoneID + "/dns_records"
 	}
 
 	httpClient := http.Client{}
