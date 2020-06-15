@@ -1,6 +1,7 @@
 package cloudflare
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,12 +16,13 @@ type Cloudflare struct {
 }
 
 type record struct {
-	name       string
-	id         string
-	zoneID     string
-	recordType string
-	proxied    bool
-	ttl        int
+	Name       string `json:"name"`
+	Address    string `json:"content"`
+	ID         string `json:"-"`
+	ZoneID     string `json:"-"`
+	RecordType string `json:"type"`
+	Proxied    bool   `json:"proxied"`
+	TTL        int    `json:"ttl"`
 }
 
 func New(user string, auth string) *Cloudflare {
@@ -29,24 +31,42 @@ func New(user string, auth string) *Cloudflare {
 
 func (c *Cloudflare) GetIP(domain string) string {
 
-	domainRecord, exists := c.records[domain]
-	if !exists {
-		c.records[domain] = &record{domain, "", c.getZoneID(domain), "", false, 0}
-		domainRecord = c.records[domain]
-		c.getInfo(domain)
+	c.getInfo(domain)
+
+	response := c.sendRequest(c.records[domain].ZoneID, c.records[domain].ID, domain, "GET")
+
+	var address string
+
+	var recordData map[string]interface{}
+	json.NewDecoder(response.Body).Decode(&recordData)
+	if itemToString(recordData["success"]) == "true" {
+		recordDetails := recordData["result"].(map[string]interface{})
+		address = itemToString(recordDetails["content"])
+	} else {
+		panic(fmt.Errorf("cannot get CloudFlare API response for record %v", domain))
 	}
 
-	fmt.Println(domainRecord)
-
-	return "127.0.0.1"
+	return address
 }
 
 func (c *Cloudflare) SetIP(domain string, address string) bool {
-	return true
+	c.getInfo(domain)
+
+	c.records[domain].Address = address
+	response := c.sendRequest(c.records[domain].ZoneID, c.records[domain].ID, domain, "PUT")
+
+	success := false
+	var changeData map[string]interface{}
+	json.NewDecoder(response.Body).Decode(&changeData)
+	if itemToString(changeData["success"]) == "true" {
+		success = true
+	}
+
+	return success
 }
 
-func (c *Cloudflare) getInfo(domain string) {
-	response := c.sendRequest(c.records[domain].zoneID, "", domain, "GET")
+func (c *Cloudflare) getDomainInfo(domain string) {
+	response := c.sendRequest(c.records[domain].ZoneID, "", domain, "GET")
 
 	var domainData map[string]interface{}
 	json.NewDecoder(response.Body).Decode(&domainData)
@@ -55,19 +75,28 @@ func (c *Cloudflare) getInfo(domain string) {
 		currentDomain := domains[i].(map[string]interface{})
 		currentDomainName := itemToString(currentDomain["name"])
 		if currentDomainName == domain {
-			c.records[domain].id = itemToString(currentDomain["id"])
-			c.records[domain].recordType = itemToString(currentDomain["type"])
+			c.records[domain].ID = itemToString(currentDomain["id"])
+			c.records[domain].RecordType = itemToString(currentDomain["type"])
 			ttl, err := strconv.Atoi(itemToString(currentDomain["ttl"]))
 			if err == nil {
-				c.records[domain].ttl = ttl
+				c.records[domain].TTL = ttl
 			}
 			proxiedS := itemToString(currentDomain["proxied"])
 			if proxiedS == "true" {
-				c.records[domain].proxied = true
+				c.records[domain].Proxied = true
 			} else {
-				c.records[domain].proxied = false
+				c.records[domain].Proxied = false
 			}
 		}
+	}
+}
+
+func (c *Cloudflare) getInfo(domain string) {
+	domainRecord, exists := c.records[domain]
+	if !exists {
+		domainRecord = &record{domain, "", "", c.getZoneID(domain), "", false, 0}
+		c.records[domain] = domainRecord
+		c.getDomainInfo(domain)
 	}
 }
 
@@ -116,8 +145,20 @@ func (c *Cloudflare) sendRequest(zoneID string, id string, domain string, method
 		url += "/" + zoneID + "/dns_records"
 	}
 
+	var data []byte
+	if method == "PUT" {
+		marshalledData, err := json.Marshal(c.records[domain])
+		if err != nil {
+			panic(fmt.Errorf("cannot marshall json data for domain %v", domain))
+		} else {
+			data = marshalledData
+		}
+	} else {
+		data = nil
+	}
+
 	httpClient := http.Client{}
-	request, err := http.NewRequest(method, url, nil)
+	request, err := http.NewRequest(method, url, bytes.NewBuffer(data))
 	request.Header.Add("X-Auth-Email", c.username)
 	request.Header.Add("X-Auth-Key", c.authToken)
 	request.Header.Add("X-Content-Type", "application/json")
