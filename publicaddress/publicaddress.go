@@ -1,3 +1,7 @@
+/*
+Package publicaddress has one function which gets the current public IP address
+of whatever machine it is run on.  It uses the ipify.org API: https://ipify.org
+*/
 package publicaddress
 
 import (
@@ -6,6 +10,7 @@ import (
 	"net/http"
 )
 
+// GetIP returns the current public IP address
 func GetIP() string {
 	var ip string
 

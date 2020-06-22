@@ -39,8 +39,8 @@ func main() {
 	refreshInterval := options.Interval
 	// The main event loop
 	for !exitNext {
+		// Iterate for every DNS entry defined in the config
 		for _, entry := range options.Entries {
-
 			// Checks whether the address is the current public address or not
 			if entry.Address == "public" {
 				// Get the current public address
@@ -80,6 +80,7 @@ func main() {
 	}
 }
 
+// A struct to store configuration options
 type config struct {
 	Provider  string         `mapstructure:"provider"`
 	Username  string         `mapstructure:"username"`
@@ -124,6 +125,7 @@ func processConfig() config {
 	// Add the command line arguments to viper
 	viper.BindPFlags(pflag.CommandLine)
 
+	// Unmarshall the config file into the config struct
 	var processedConfig config
 	err = viper.Unmarshal(&processedConfig)
 	if err != nil {
@@ -135,5 +137,6 @@ func processConfig() config {
 		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, domain"))
 	}
 
+	// Return the config struct with config data
 	return processedConfig
 }

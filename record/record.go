@@ -1,3 +1,9 @@
+/*
+Package record contains the generic record entry type to store commonly used
+information from a given DNS record.
+
+It exports a New function which creates a new entry object.
+*/
 package record
 
 // Entry is a generic struct that keeps information about a certain record
