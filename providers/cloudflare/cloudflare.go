@@ -7,26 +7,18 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/nadehi18/recordkeeper/record"
 )
 
 type Cloudflare struct {
 	username  string
 	authToken string
-	records   map[string]*record
-}
-
-type record struct {
-	Name       string `json:"name"`
-	Address    string `json:"content"`
-	ID         string `json:"-"`
-	ZoneID     string `json:"-"`
-	RecordType string `json:"type"`
-	Proxied    bool   `json:"proxied"`
-	TTL        int    `json:"ttl"`
+	records   map[string]*record.Entry
 }
 
 func New(user string, auth string) *Cloudflare {
-	return &Cloudflare{user, auth, make(map[string]*record)}
+	return &Cloudflare{user, auth, make(map[string]*record.Entry)}
 }
 
 func (c *Cloudflare) GetIP(domain string) string {
@@ -94,7 +86,7 @@ func (c *Cloudflare) getDomainInfo(domain string) {
 func (c *Cloudflare) getInfo(domain string) {
 	domainRecord, exists := c.records[domain]
 	if !exists {
-		domainRecord = &record{domain, "", "", c.getZoneID(domain), "", false, 0}
+		domainRecord = &record.Entry{domain, "", "", c.getZoneID(domain), "", false, 0}
 		c.records[domain] = domainRecord
 		c.getDomainInfo(domain)
 	}

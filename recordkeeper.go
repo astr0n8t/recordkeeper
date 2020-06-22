@@ -21,6 +21,7 @@ import (
 
 	"github.com/nadehi18/recordkeeper/providers"
 	"github.com/nadehi18/recordkeeper/publicaddress"
+	"github.com/nadehi18/recordkeeper/record"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -80,18 +81,11 @@ func main() {
 }
 
 type config struct {
-	Provider  string   `mapstructure:"provider"`
-	Username  string   `mapstructure:"username"`
-	AuthToken string   `mapstructure:"authToken"`
-	Interval  int      `mapstructure:"interval"`
-	Entries   []record `mapstructure:"records"`
-}
-
-type record struct {
-	Domain  string `mapstructure:"name"`
-	Address string `mapstructure:"address"`
-	ID      string `mapstructure:"ID"`
-	ZoneID  string `mapstructure:"zoneID"`
+	Provider  string         `mapstructure:"provider"`
+	Username  string         `mapstructure:"username"`
+	AuthToken string         `mapstructure:"authToken"`
+	Interval  int            `mapstructure:"interval"`
+	Entries   []record.Entry `mapstructure:"records"`
 }
 
 // Processes the configuration file and command line arguments using Viper and PFlags
@@ -137,7 +131,7 @@ func processConfig() config {
 	}
 
 	// Check for required configuration options
-	if processedConfig.Username == "" || processedConfig.AuthToken == "" || processedConfig.Entries[0] == (record{}) || processedConfig.Entries[0].Domain == "" {
+	if processedConfig.Username == "" || processedConfig.AuthToken == "" || processedConfig.Entries[0] == (record.Entry{}) || processedConfig.Entries[0].Domain == "" {
 		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, domain"))
 	}
 
