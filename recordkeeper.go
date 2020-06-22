@@ -27,42 +27,44 @@ import (
 
 func main() {
 	// Reads in the configuration file and/or arguments
-	processConfig()
+	options := processConfig()
 	// Gets the respective struct for the selected provider
-	providerConnection := providers.GetProvider(viper.GetString("provider"), viper.GetString("username"), viper.GetString("authToken"))
+	providerConnection := providers.GetProvider(options.Provider, options.Username, options.AuthToken)
 	// Controls the event loop
 	exitNext := false
 	// Stores the IP to set to, probably will be changed to an array
 	var address string
 	// Stores the time in minutes to refresh the records
-	refreshInterval := viper.GetInt("interval")
-
+	refreshInterval := options.Interval
 	// The main event loop
 	for !exitNext {
-		// Checks whether the address is the current public address or not
-		if viper.GetString("address") == "public" {
-			// Get the current public address
-			address = publicaddress.GetIP()
-		} else {
-			// Get the preset address in the config
-			address = viper.GetString("address")
-		}
-		// Get the current record address from the DNS provider
-		currentAddress := providerConnection.GetIP(viper.GetString("domain"))
+		for _, entry := range options.Entries {
 
-		// Check if the address in the record differs from the user set address
-		if currentAddress != address {
-			// If it has, change the record to point to the user set address
-			changed := providerConnection.SetIP(viper.GetString("domain"), address)
-
-			// Check if the record was successfully changed
-			if changed {
-				fmt.Printf("Successfully updated record %v to point to address %v. \n", viper.GetString("domain"), address)
+			// Checks whether the address is the current public address or not
+			if entry.Address == "public" {
+				// Get the current public address
+				address = publicaddress.GetIP()
 			} else {
-				fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, address, viper.GetString("domain"))
+				// Get the preset address in the config
+				address = entry.Address
 			}
-		} else {
-			fmt.Printf("Record %v still points at address %v.  No errors encountered.\n", viper.GetString("domain"), currentAddress)
+			// Get the current record address from the DNS provider
+			currentAddress := providerConnection.GetIP(entry.Domain)
+
+			// Check if the address in the record differs from the user set address
+			if currentAddress != address {
+				// If it has, change the record to point to the user set address
+				changed := providerConnection.SetIP(entry.Domain, address)
+
+				// Check if the record was successfully changed
+				if changed {
+					fmt.Printf("Successfully updated record %v to point to address %v. \n", entry.Domain, address)
+				} else {
+					fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, address, entry.Domain)
+				}
+			} else {
+				fmt.Printf("Record %v still points at address %v.  No errors encountered.\n", entry.Domain, currentAddress)
+			}
 		}
 
 		// Check if the loop should continue or exit
@@ -77,8 +79,23 @@ func main() {
 	}
 }
 
+type config struct {
+	Provider  string   `mapstructure:"provider"`
+	Username  string   `mapstructure:"username"`
+	AuthToken string   `mapstructure:"authToken"`
+	Interval  int      `mapstructure:"interval"`
+	Entries   []record `mapstructure:"records"`
+}
+
+type record struct {
+	Domain  string `mapstructure:"name"`
+	Address string `mapstructure:"address"`
+	ID      string `mapstructure:"ID"`
+	ZoneID  string `mapstructure:"zoneID"`
+}
+
 // Processes the configuration file and command line arguments using Viper and PFlags
-func processConfig() {
+func processConfig() config {
 
 	// Set defaults
 	viper.SetDefault("provider", "cloudflare")
@@ -113,8 +130,16 @@ func processConfig() {
 	// Add the command line arguments to viper
 	viper.BindPFlags(pflag.CommandLine)
 
+	var processedConfig config
+	err = viper.Unmarshal(&processedConfig)
+	if err != nil {
+		panic(fmt.Errorf("unable to unmarshall config file or command line arguments"))
+	}
+
 	// Check for required configuration options
-	if viper.GetString("username") == "" || viper.GetString("authToken") == "" || viper.GetString("domain") == "" {
+	if processedConfig.Username == "" || processedConfig.AuthToken == "" || processedConfig.Entries[0] == (record{}) || processedConfig.Entries[0].Domain == "" {
 		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, domain"))
 	}
+
+	return processedConfig
 }
