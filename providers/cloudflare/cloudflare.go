@@ -21,11 +21,11 @@ func New(user string, auth string) *Cloudflare {
 	return &Cloudflare{user, auth, make(map[string]*record.Entry)}
 }
 
-func (c *Cloudflare) GetIP(domain string) string {
+func (c *Cloudflare) GetIP(entry record.Entry) string {
 
-	c.getInfo(domain)
+	c.getInfo(entry)
 
-	response := c.sendRequest(c.records[domain].ZoneID, c.records[domain].ID, domain, "GET")
+	response := c.sendRequest(c.records[entry.Domain].ZoneID, c.records[entry.Domain].ID, entry.Domain, "GET")
 
 	var address string
 
@@ -35,17 +35,17 @@ func (c *Cloudflare) GetIP(domain string) string {
 		recordDetails := recordData["result"].(map[string]interface{})
 		address = itemToString(recordDetails["content"])
 	} else {
-		panic(fmt.Errorf("cannot get CloudFlare API response for record %v", domain))
+		panic(fmt.Errorf("cannot get CloudFlare API response for record %v", entry.Domain))
 	}
 
 	return address
 }
 
-func (c *Cloudflare) SetIP(domain string, address string) bool {
-	c.getInfo(domain)
+func (c *Cloudflare) SetIP(address string, entry record.Entry) bool {
+	c.getInfo(entry)
 
-	c.records[domain].Address = address
-	response := c.sendRequest(c.records[domain].ZoneID, c.records[domain].ID, domain, "PUT")
+	c.records[entry.Domain].Address = address
+	response := c.sendRequest(c.records[entry.Domain].ZoneID, c.records[entry.Domain].ID, entry.Domain, "PUT")
 
 	success := false
 	var changeData map[string]interface{}
@@ -57,9 +57,10 @@ func (c *Cloudflare) SetIP(domain string, address string) bool {
 	return success
 }
 
-func (c *Cloudflare) getDomainInfo(domain string) {
+func (c *Cloudflare) getDomainProperty(domain string, property string) string {
 	response := c.sendRequest(c.records[domain].ZoneID, "", domain, "GET")
 
+	var value string
 	var domainData map[string]interface{}
 	json.NewDecoder(response.Body).Decode(&domainData)
 	domains := domainData["result"].([]interface{})
@@ -67,28 +68,43 @@ func (c *Cloudflare) getDomainInfo(domain string) {
 		currentDomain := domains[i].(map[string]interface{})
 		currentDomainName := itemToString(currentDomain["name"])
 		if currentDomainName == domain {
-			c.records[domain].ID = itemToString(currentDomain["id"])
-			c.records[domain].RecordType = itemToString(currentDomain["type"])
-			ttl, err := strconv.Atoi(itemToString(currentDomain["ttl"]))
-			if err == nil {
-				c.records[domain].TTL = ttl
-			}
-			proxiedS := itemToString(currentDomain["proxied"])
-			if proxiedS == "true" {
-				c.records[domain].Proxied = true
-			} else {
-				c.records[domain].Proxied = false
-			}
+			value = itemToString(currentDomain[property])
+
 		}
 	}
+	return value
 }
 
-func (c *Cloudflare) getInfo(domain string) {
-	domainRecord, exists := c.records[domain]
+func (c *Cloudflare) getInfo(entry record.Entry) {
+	_, exists := c.records[entry.Domain]
 	if !exists {
-		domainRecord = &record.Entry{domain, "", "", c.getZoneID(domain), "", false, 0}
-		c.records[domain] = domainRecord
-		c.getDomainInfo(domain)
+		c.records[entry.Domain] = &entry
+	}
+
+	if c.records[entry.Domain].ZoneID == "" {
+		c.records[entry.Domain].ZoneID = c.getZoneID(entry.Domain)
+	}
+
+	if c.records[entry.Domain].ID == "" {
+		c.records[entry.Domain].ID = c.getDomainProperty(entry.Domain, "id")
+	}
+
+	if c.records[entry.Domain].RecordType == "" {
+		c.records[entry.Domain].RecordType = c.getDomainProperty(entry.Domain, "type")
+	}
+
+	if c.records[entry.Domain].TTL == 0 {
+		ttl, err := strconv.Atoi(c.getDomainProperty(entry.Domain, "ttl"))
+		if err == nil {
+			c.records[entry.Domain].TTL = ttl
+		}
+	}
+
+	proxiedS := c.getDomainProperty(entry.Domain, "proxied")
+	if proxiedS == "true" {
+		c.records[entry.Domain].Proxied = true
+	} else {
+		c.records[entry.Domain].Proxied = false
 	}
 }
 

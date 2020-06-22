@@ -6,9 +6,9 @@ type Entry struct {
 	Address    string `json:"content" mapstructure:"address"`
 	ID         string `json:"-" mapstructure:"ID"`
 	ZoneID     string `json:"-" mapstructure:"zoneID"`
-	RecordType string `json:"type"`
-	Proxied    bool   `json:"proxied"`
-	TTL        int    `json:"ttl"`
+	RecordType string `json:"type" mapstructure:"type"`
+	Proxied    bool   `json:"proxied" mapstructure:"proxied"`
+	TTL        int    `json:"ttl" mapstructure:"ttl"`
 }
 
 // New returns a new record entry

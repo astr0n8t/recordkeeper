@@ -50,12 +50,12 @@ func main() {
 				address = entry.Address
 			}
 			// Get the current record address from the DNS provider
-			currentAddress := providerConnection.GetIP(entry.Domain)
+			currentAddress := providerConnection.GetIP(entry)
 
 			// Check if the address in the record differs from the user set address
 			if currentAddress != address {
 				// If it has, change the record to point to the user set address
-				changed := providerConnection.SetIP(entry.Domain, address)
+				changed := providerConnection.SetIP(address, entry)
 
 				// Check if the record was successfully changed
 				if changed {
