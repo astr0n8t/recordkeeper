@@ -13,8 +13,8 @@ import (
 
 // Provider interface defines what functions a provider struct should have
 type Provider interface {
-	GetIP(record.Entry) string
-	SetIP(string, record.Entry) bool
+	UpdateEntry(*record.Entry)
+	SetIP(string, *record.Entry) bool
 }
 
 // GetProvider returns a new object of the given provider type

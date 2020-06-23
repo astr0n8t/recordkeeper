@@ -42,29 +42,29 @@ func main() {
 		// Iterate for every DNS entry defined in the config
 		for _, entry := range options.Entries {
 			// Checks whether the address is the current public address or not
-			if entry.Address == "public" {
+			if entry.AddressSetting == "public" {
 				// Get the current public address
 				address = publicaddress.GetIP()
 			} else {
 				// Get the preset address in the config
-				address = entry.Address
+				address = entry.AddressSetting
 			}
 			// Get the current record address from the DNS provider
-			currentAddress := providerConnection.GetIP(entry)
+			providerConnection.UpdateEntry(&entry)
 
 			// Check if the address in the record differs from the user set address
-			if currentAddress != address {
+			if entry.Address != address {
 				// If it has, change the record to point to the user set address
-				changed := providerConnection.SetIP(address, entry)
+				changed := providerConnection.SetIP(address, &entry)
 
 				// Check if the record was successfully changed
 				if changed {
 					fmt.Printf("Successfully updated record %v to point to address %v. \n", entry.Domain, address)
 				} else {
-					fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", currentAddress, address, entry.Domain)
+					fmt.Printf("ERROR: Unable to change address %v to %v on record %v! \n", entry.AddressSetting, address, entry.Domain)
 				}
 			} else {
-				fmt.Printf("Record %v still points at address %v.  No errors encountered.\n", entry.Domain, currentAddress)
+				fmt.Printf("Record %v still points at address %v.  No errors encountered.\n", entry.Domain, entry.Address)
 			}
 		}
 
@@ -132,7 +132,7 @@ func processConfig() config {
 
 	// Check for required configuration options
 	if processedConfig.Username == "" || processedConfig.AuthToken == "" || processedConfig.Entries[0] == (record.Entry{}) || processedConfig.Entries[0].Domain == "" {
-		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, domain"))
+		panic(fmt.Errorf("one or more required arguments not supplied or config file could not be read\n required arguments: username, authToken, one domain entry"))
 	}
 
 	// Return the config struct with config data
