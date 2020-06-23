@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/nadehi18/recordkeeper/record"
@@ -87,7 +88,7 @@ func (c *Cloudflare) UpdateEntry(entry *record.Entry) {
 
 	// Check for a zoneID in memory otherwise retrieve it
 	if entry.ZoneID == "" {
-		entry.ZoneID = c.getZoneID(entry)
+		c.getZoneID(entry)
 	}
 
 	// Pull info from cloudflare
@@ -108,16 +109,28 @@ func (c *Cloudflare) UpdateEntry(entry *record.Entry) {
 // getDomainInfo retrieves information about the given domain
 func (c *Cloudflare) getDomainInfo(entry *record.Entry) result {
 	var info result
-	// Try to get information about the domain
-	domainResponse := c.sendGetRequest(entry, true)
+	found := false
+
+	currentPage := 1
 
 	// Find the correct record in the response
 	// Choose from ID if it is available, otherwise choose based on name
-	for _, record := range domainResponse.Result {
-		if entry.ID == "" && record.Name == entry.Domain {
-			info = record
-		} else if entry.ID == record.ID {
-			info = record
+	for !found {
+		// Try to get information about the domain
+		domainResponse := c.sendGetRequest(entry, true, currentPage)
+		for _, record := range domainResponse.Result {
+			if entry.ID == record.ID || (entry.ID == "" && record.Name == entry.Domain) {
+				info = record
+				found = true
+			}
+		}
+		// Check if there are more pages if we have not found the record
+		if !found {
+			if domainResponse.Info.CurrentPage < domainResponse.Info.TotalPages {
+				currentPage++
+			} else {
+				panic(fmt.Errorf("cannot retrieve information for given record"))
+			}
 		}
 	}
 
@@ -126,22 +139,31 @@ func (c *Cloudflare) getDomainInfo(entry *record.Entry) result {
 }
 
 // getZoneID tries to get the zone ID of the given domain
-func (c *Cloudflare) getZoneID(entry *record.Entry) string {
-	var zoneID string
+func (c *Cloudflare) getZoneID(entry *record.Entry) {
+	found := false
+	currentPage := 1
 	// Try to get the name of the zone
 	zoneName := findZoneName(entry.Domain)
-	// Try to get information about the zone
-	zoneResponse := c.sendGetRequest(entry, false)
+	for !found {
+		// Try to get information about the zone
+		zoneResponse := c.sendGetRequest(entry, false, currentPage)
 
-	// Select the correct zoneID based on the zone name
-	for _, zone := range zoneResponse.Result {
-		if zone.Name == zoneName {
-			zoneID = zone.ID
+		// Select the correct zoneID based on the zone name
+		for _, zone := range zoneResponse.Result {
+			if zone.Name == zoneName {
+				entry.ZoneID = zone.ID
+				found = true
+			}
+		}
+		// Check if there are more pages if we have not found the zone
+		if !found {
+			if zoneResponse.Info.CurrentPage < zoneResponse.Info.TotalPages {
+				currentPage++
+			} else {
+				panic(fmt.Errorf("cannot retrieve information for zone of given record"))
+			}
 		}
 	}
-
-	// Return the zone ID
-	return zoneID
 }
 
 // findZoneName tries to get the name of the zone that the given domain is in by splitting
@@ -164,7 +186,7 @@ func findZoneName(domain string) string {
 }
 
 // sendGetRequest processes the given arguments to send the appropriate GET request to the Cloudflare API
-func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool) getResponse {
+func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool, pageNumber int) getResponse {
 	// The base Cloudflare API URL
 	url := "https://api.cloudflare.com/client/v4/zones"
 
@@ -172,6 +194,9 @@ func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool) getRes
 	if zoneLookup {
 		url += "/" + entry.ZoneID + "/dns_records"
 	}
+
+	// Add current page number to request
+	url += "?page=" + strconv.Itoa(pageNumber)
 
 	// Create a new HTTP client and craft the request with the correct headers
 	httpClient := http.Client{}
