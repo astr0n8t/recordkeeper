@@ -117,8 +117,6 @@ func processConfig() config {
 	pflag.String("provider", "cloudflare", "Selects a DNS provider to use")
 	pflag.String("username", "", "The username to use to connect to the DNS service")
 	pflag.String("authToken", "", "The authentication token to connect to the DNS provider")
-	pflag.String("domain", "", "The domain record to check")
-	pflag.String("address", "public", "The address to bind the domain to (use public to specify current public IP)")
 	pflag.Int("interval", 60, "The time in seconds to check the DNS record, set to 0 to only run once")
 	pflag.Parse()
 
