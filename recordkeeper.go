@@ -49,7 +49,7 @@ func main() {
 				// Get the preset address in the config
 				address = entry.AddressSetting
 			}
-			// Get the current record address from the DNS provider
+			// Get the current record information from the DNS provider
 			providerConnection.UpdateEntry(&entry)
 
 			// Check if the address in the record differs from the user set address

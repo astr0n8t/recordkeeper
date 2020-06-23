@@ -1,6 +1,6 @@
 /*
 Package cloudflare is a provider object with support for the Cloudflare API: https://api.cloudflare.com
-It exports the required functions for it to be a provider: GetIP and SetIP
+It exports the required functions for it to be a provider: UpdateEntry and SetIP
 It also uses the generic DNS record entry type from the record package
 */
 package cloudflare
@@ -22,6 +22,7 @@ type Cloudflare struct {
 	authToken string
 }
 
+// Struct to store the response from a GET request
 type getResponse struct {
 	Result   []result `json:"result"`
 	Success  bool     `json:"success"`
@@ -30,6 +31,7 @@ type getResponse struct {
 	Info     pageInfo `json:"result_info"`
 }
 
+// Struct to store the response from a PUT request
 type putResponse struct {
 	Result   result   `json:"result"`
 	Success  bool     `json:"success"`
@@ -38,6 +40,7 @@ type putResponse struct {
 	Info     pageInfo `json:"result_info"`
 }
 
+// Struct to store the information in the result of a response
 type result struct {
 	ID         string `json:"id"`
 	ZoneID     string `json:"zone_id"`
@@ -49,6 +52,7 @@ type result struct {
 	TTL        int    `json:"ttl"`
 }
 
+// Struct to store the information in the info of a response
 type pageInfo struct {
 	CurrentPage int `json:"page"`
 	PerPage     int `json:"per_page"`
@@ -68,6 +72,7 @@ func New(user string, auth string) *Cloudflare {
 func (c *Cloudflare) SetIP(address string, entry *record.Entry) bool {
 	// Get the information about the entry
 	c.UpdateEntry(entry)
+	// Set the new address
 	entry.Address = address
 
 	// Send the request to update the entry
@@ -77,7 +82,7 @@ func (c *Cloudflare) SetIP(address string, entry *record.Entry) bool {
 	return putResponse.Success
 }
 
-// getInfo fills in the gaps from the config file with information from Cloudflare about the entry
+// UpdateEntry updates the entry with values from Cloudflare
 func (c *Cloudflare) UpdateEntry(entry *record.Entry) {
 
 	// Check for a zoneID in memory otherwise retrieve it
@@ -93,36 +98,30 @@ func (c *Cloudflare) UpdateEntry(entry *record.Entry) {
 		entry.ID = cloudflareInfo.ID
 	}
 
-	// Check for a DNS record type in memory otherwise retrieve it
-	if entry.RecordType == "" {
-		entry.RecordType = cloudflareInfo.RecordType
-	}
-
-	// Check for a DNS TTL in memory otherwise retrieve it
-	if entry.TTL == 0 {
-		entry.TTL = cloudflareInfo.TTL
-	}
-
-	// There is no way of knowing if the value in memory is correct or just uninitialized so
-	// retrieve the value from Cloudflare
+	// Update values in memory
+	entry.RecordType = cloudflareInfo.RecordType
+	entry.TTL = cloudflareInfo.TTL
 	entry.Proxied = cloudflareInfo.Proxied
-
 	entry.Address = cloudflareInfo.Address
 }
 
-// getDomainProperty retrieves a certain data property about the given domain
+// getDomainInfo retrieves information about the given domain
 func (c *Cloudflare) getDomainInfo(entry *record.Entry) result {
 	var info result
 	// Try to get information about the domain
 	domainResponse := c.sendGetRequest(entry, true)
 
+	// Find the correct record in the response
+	// Choose from ID if it is available, otherwise choose based on name
 	for _, record := range domainResponse.Result {
-		if record.Name == entry.Domain {
+		if entry.ID == "" && record.Name == entry.Domain {
+			info = record
+		} else if entry.ID == record.ID {
 			info = record
 		}
 	}
 
-	// Return the desired property of the domain
+	// Return the info on the domain
 	return info
 }
 
@@ -134,6 +133,7 @@ func (c *Cloudflare) getZoneID(entry *record.Entry) string {
 	// Try to get information about the zone
 	zoneResponse := c.sendGetRequest(entry, false)
 
+	// Select the correct zoneID based on the zone name
 	for _, zone := range zoneResponse.Result {
 		if zone.Name == zoneName {
 			zoneID = zone.ID
@@ -163,7 +163,7 @@ func findZoneName(domain string) string {
 	return zoneName
 }
 
-// sendRequest processes the given arguments to send the appropriate request to the Cloudflare API
+// sendGetRequest processes the given arguments to send the appropriate GET request to the Cloudflare API
 func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool) getResponse {
 	// The base Cloudflare API URL
 	url := "https://api.cloudflare.com/client/v4/zones"
@@ -190,12 +190,13 @@ func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool) getRes
 		panic(fmt.Errorf("cannot connect to CloudFlare API"))
 	}
 
+	// Read the response
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		panic(fmt.Errorf("cannot read HTTP response"))
 	}
-
+	// Marshal the JSON response into a get response struct type
 	var responseData getResponse
 	err = json.Unmarshal(body, &responseData)
 	if err != nil {
@@ -206,12 +207,12 @@ func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool) getRes
 	return responseData
 }
 
+// sendPutRequest processes the given arguments to send the appropriate PUT request to the Cloudflare API
 func (c *Cloudflare) sendPutRequest(entry *record.Entry) putResponse {
-	// The base Cloudflare API URL
+	// The url of the correct API call
 	url := "https://api.cloudflare.com/client/v4/zones" + "/" + entry.ZoneID + "/dns_records/" + entry.ID
 
 	var data []byte
-
 	// Attempt to marshall the given record entry informatino into JSON format
 	marshalledData, err := json.Marshal(entry)
 	if err != nil {
@@ -238,12 +239,13 @@ func (c *Cloudflare) sendPutRequest(entry *record.Entry) putResponse {
 		panic(fmt.Errorf("cannot connect to CloudFlare API"))
 	}
 
+	// Read the response
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		panic(fmt.Errorf("cannot read HTTP response"))
 	}
-
+	// Marshal the JSON response into a put response struct type
 	var responseData putResponse
 	err = json.Unmarshal(body, &responseData)
 	if err != nil {

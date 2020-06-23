@@ -1,6 +1,6 @@
 /*
-Package providers defines the provider interface which essentially means that
-every provider needs to implement GetIP and SetIP functions.  The provider
+Package providers defines the provider interface which defines that
+every provider needs to implement UpdateEntry and SetIP functions.  The provider
 will then be added as an option in the GetProvider function which returns a
 new object of the specified provider.
 */
