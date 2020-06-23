@@ -99,8 +99,8 @@ func processConfig() config {
 
 	// Set default config directories
 	viper.SetConfigName("config")
-	viper.AddConfigPath("/etc/recordkeeper/")
 	viper.AddConfigPath("$HOME/.config/recordkeeper")
+	viper.AddConfigPath("/etc/recordkeeper/")
 	viper.AddConfigPath(".")
 
 	// Read the config
