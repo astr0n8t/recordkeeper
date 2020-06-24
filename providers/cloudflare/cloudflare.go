@@ -201,8 +201,14 @@ func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool, pageNu
 	// Create a new HTTP client and craft the request with the correct headers
 	httpClient := http.Client{}
 	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("X-Auth-Email", c.username)
-	request.Header.Add("X-Auth-Key", c.authToken)
+
+	// Check if user is using user service key instead of API key
+	if c.username == "USERSERVICEKEY" {
+		request.Header.Add("X-Auth-User-Service-Key", c.authToken)
+	} else {
+		request.Header.Add("X-Auth-Email", c.username)
+		request.Header.Add("X-Auth-Key", c.authToken)
+	}
 	request.Header.Add("X-Content-Type", "application/json")
 
 	if err != nil {
@@ -250,8 +256,14 @@ func (c *Cloudflare) sendPutRequest(entry *record.Entry) putResponse {
 	// Create a new HTTP client and craft the request with the correct headers
 	httpClient := http.Client{}
 	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(data))
-	request.Header.Add("X-Auth-Email", c.username)
-	request.Header.Add("X-Auth-Key", c.authToken)
+
+	// Check if user is using user service key instead of API key
+	if c.username == "USERSERVICEKEY" {
+		request.Header.Add("X-Auth-User-Service-Key", c.authToken)
+	} else {
+		request.Header.Add("X-Auth-Email", c.username)
+		request.Header.Add("X-Auth-Key", c.authToken)
+	}
 	request.Header.Add("X-Content-Type", "application/json")
 
 	if err != nil {
