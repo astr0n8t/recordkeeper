@@ -203,7 +203,7 @@ func (c *Cloudflare) sendGetRequest(entry *record.Entry, zoneLookup bool, pageNu
 	request, err := http.NewRequest("GET", url, nil)
 
 	// Check if user is using user service key instead of API key
-	if c.username == "USERSERVICEKEY" {
+	if c.username == "CLOUDFLARESERVICEKEY" {
 		request.Header.Add("X-Auth-User-Service-Key", c.authToken)
 	} else {
 		request.Header.Add("X-Auth-Email", c.username)
