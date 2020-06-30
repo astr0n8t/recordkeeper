@@ -1,4 +1,5 @@
 # RecordKeeper
+
 RecordKeeper is a dynamic DNS client written in Go with support for Cloudflare DNS services.  It was built for Linux, but since it was written in Go, there is a good chance that it will work on Windows and macOS as well if needed.
 
 ## The Basics
@@ -10,6 +11,7 @@ RecordKeeper by default runs continually, but can also be set to run once so tha
 Right now Cloudflare is the only supported provider, but because of how RecordKeeper is structured, additional providers should be relatively easy to implement and add support for.
 
 ### Configuration
+
 To configure RecordKeeper, you need a config file, although the following CLI arguments are supported as well:
 
 ```(NONE)
@@ -25,19 +27,19 @@ A typical configuration file looks like this (YAML):
 
 ```(YAML)
 
-provider: cloudflare						# The provider to use
-username: user@example.com					# Email or username for the provider account
-authToken: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx	# Authentication token for the account to use the service's API
-interval: 60								# The interval in minutes to recheck for changes (default is 60) when set to 0 it only checks once then exits for use with cron
+provider: cloudflare                      # The provider to use
+username: user@example.com                # Email or username for the provider account
+authToken: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Authentication token for the account to use the service's API
+interval: 60                              # The interval in minutes to recheck for changes (default is 60) when set to 0 it only checks once then exits for use with cron
 records:
   -
-    name: subdomain1.example.com			# Domain of the record
-    address: public							# IP or public which retrieves the current public IP address from https://ipify.org
+    name: subdomain1.example.com          # Domain of the record
+    address: public                       # IP or public which retrieves the current public IP address from https://ipify.org
   -
     name: subdomain2.example.com
     address: 127.0.0.1
-    ID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx		# Optional: the specific ID of the record (useful when there are multiple records with the same URL)
-    zoneID: xxxxxxxxxxxxxxxxxxxxxxxxxxx	# Optional: the specific ID of the zone
+    ID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxx     # Optional: the specific ID of the record (useful when there are multiple records with the same URL)
+    zoneID: xxxxxxxxxxxxxxxxxxxxxxxxxxx   # Optional: the specific ID of the zone
 ```
 
 Cloudflare User Service Keys are also supported for extra security instead of using your entire account API key.  If using one simply set the username option to "CLOUDFLARESERVICEKEY" and set the authToken to your User Service Key.
